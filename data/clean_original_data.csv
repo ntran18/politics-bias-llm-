@@ -1,4 +1,4 @@
-,age,articleNumber,batch,bias-question,country,gender,language,source,politics,url
+index,age,articleNumber,batch,bias-question,country,gender,language,source,politics,url
 0,27,441.0,7.0,is-biased,United States,Female,English,CNN,Conservative,https://www.cnn.com/2022/04/10/europe/french-presidential-election-results-intl/index.html
 1,39,481.0,6.0,is-not-biased,United States,Female,English,FOX,Liberal,https://www.foxnews.com/us/midwestern-storm-rainy-weather-snow-great-lakes-northeast
 2,48,316.0,8.0,is-biased,United States,Female,English,FOX,Liberal,https://www.foxnews.com/us/wake-forest-medical-school-del-rosario-pronoun-patient-twitter
