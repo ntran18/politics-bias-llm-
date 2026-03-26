@@ -1,6 +1,6 @@
 import argparse
 from article_fetcher import ArticleFetcher
-from prompt_generation.constants import Constants 
+from constants import Constants 
 import os
 import pandas as pd
 
@@ -160,6 +160,36 @@ class ArticlePromptGenerator:
         }
         self._generate_prompts_with_context(data, FILE_NAME, config)
         
+    def generate_source_politics_prompts(self, data):
+        FILE_NAME = Constants.DEFAULT_PROMPT_SOURCE_POLITICS_FILE
+        config = {
+            'include_source': True, 
+            'include_politics': True, 
+            'include_pii': False,
+            'output_cols': ['source', 'politics']
+        }
+        self._generate_prompts_with_context(data, FILE_NAME, config)
+    
+    def generate_source_pii_prompts(self, data):
+        FILE_NAME = Constants.DEFAULT_PROMPT_SOURCE_PII_FILE
+        config = {
+            'include_source': True, 
+            'include_politics': False, 
+            'include_pii': True,
+            'output_cols': ['source', 'age', 'gender']
+        }
+        self._generate_prompts_with_context(data, FILE_NAME, config)
+        
+    def generate_politics_pii_prompts(self, data):
+        FILE_NAME = Constants.DEFAULT_PROMPT_POLITICS_PII_FILE
+        config = {
+            'include_source': False, 
+            'include_politics': True, 
+            'include_pii': True,
+            'output_cols': ['politics', 'age', 'gender']
+        }
+        self._generate_prompts_with_context(data, FILE_NAME, config)
+        
     def generate_pii_combined_all_prompts(self, data):
         FILE_NAME = Constants.DEFAULT_PROMPT_PII_COMBINED_ALL_FILE
         config = {
@@ -181,6 +211,10 @@ class ArticlePromptGenerator:
         self.generate_source_prompts(data)
         self.generate_pii_combined_all_prompts(data)
         
+        self.generate_source_politics_prompts(data)
+        self.generate_source_pii_prompts(data)
+        self.generate_politics_pii_prompts(data)
+        
         print("All prompt files generated successfully.")
 
 if __name__ == '__main__':
@@ -196,7 +230,7 @@ if __name__ == '__main__':
     prompt_group = parser.add_mutually_exclusive_group()
     prompt_group.add_argument('--all-prompts', action='store_true', help="Generate all four simplified prompt types.")
     prompt_group.add_argument('--prompts', nargs='+', choices=[
-        'articles_info', 'politics', 'sources', 'pii_combined_all'
+        'articles_info', 'politics', 'sources', 'pii_combined_all', 'politics_pii', 'source_pii', 'source_politics'
     ], help="Specify a list of simplified prompt types to generate.")
     
     args = parser.parse_args()
@@ -224,6 +258,9 @@ if __name__ == '__main__':
         'politics': generator.generate_politics_prompts,
         'sources': generator.generate_source_prompts,
         'pii_combined_all': generator.generate_pii_combined_all_prompts,
+        'politics_pii': generator.generate_politics_pii_prompts,
+        'source_pii': generator.generate_source_pii_prompts,
+        'source_politics': generator.generate_source_politics_prompts,
     }
 
     if args.all_prompts:

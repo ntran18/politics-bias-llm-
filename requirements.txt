@@ -5,3 +5,5 @@ tqdm
 requests
 beautifulsoup4
 chardet
+openai
+google-genai

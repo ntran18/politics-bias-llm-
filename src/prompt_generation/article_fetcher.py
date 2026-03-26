@@ -1,4 +1,4 @@
-from prompt_generation.constants import Constants
+from constants import Constants
 from bs4 import BeautifulSoup
 import chardet
 import os

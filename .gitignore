@@ -167,3 +167,5 @@ result_data/
 .DS_Store
 
 data/prompts/
+
+*.sh

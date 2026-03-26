@@ -18,7 +18,7 @@ for VERSION in "${VERSIONS[@]}"; do
     echo "Starting $MODEL for version: $VERSION"
     echo "------------------------------------------"
     
-    python ollama_llm_executor.py \
+    python main.py \
         --file-type all \
         --model "$MODEL" \
         --version "$VERSION" \
