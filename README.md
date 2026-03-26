@@ -63,13 +63,18 @@ From `src/model_runner`:
 - Gemini:
   `python main.py --provider gemini --model gemini-2.0-flash-lite --version v7.1 --file-type all --workers 4`
 
-## Run with provided shell scripts
+## Run with example shell scripts
 
-From `src/model_runner`:
+From repository root:
 
-- OpenAI batch: `bash openai_batch_runner.sh`
-- Gemini: `bash gemini_runner.sh`
-- Ollama models: `bash gemma3_runner.sh`, `bash llama_4_scout_runner.sh`, `bash qwen3_30_runner.sh`, `bash qwen3_4b_runner.sh`, `bash r1-1776_runner.sh`, `bash phi4_mini_runner.sh`
+- OpenAI batch: `bash examples/model_runner/openai_batch_runner.sh [file_type] [version]`
+- Gemini: `bash examples/model_runner/gemini_runner.sh [file_type] [version]`
+- Ollama Llama 4 Scout: `bash examples/model_runner/ollama_runner.sh [file_type]`
+
+Examples:
+
+- `bash examples/model_runner/openai_batch_runner.sh test_two_queries test`
+- `bash examples/model_runner/gemini_runner.sh test_two_queries test`
 
 ## Notes
 
