@@ -1,59 +1,77 @@
-# LLAM-political-bias
+# LLM Political Bias Runner
 
-This is a project to find whether LLM can detect political bias in the media articles.
+This repository runs political-bias classification prompts against multiple LLM providers and saves structured CSV outputs.
 
-## Multi-provider model runner
+## Supported providers
 
-The runner at `src/model_runner/ollama_llm_executor.py` now supports:
+- Ollama (local models)
+- OpenAI Batch API
+- Gemini API
 
-- Ollama local models (existing behavior)
-- OpenAI Batch API (cost-optimized, async completion window up to 24h)
-- Gemini live API
+## Input and output
 
-Input CSV format is unchanged (`article_id`, `index`, `prompt`) and output CSV format is unchanged (`llm_assessment`, `llm_confidence`, `llm_explanation`, `llm_model`).
+Input prompt CSVs must include:
 
-### Setup
+- `article_id`
+- `index`
+- `prompt`
+
+Output CSV rows include:
+
+- `llm_assessment`
+- `llm_confidence`
+- `llm_explanation`
+- `llm_model`
+- `llm_error`
+
+## Setup
 
 Install dependencies:
 
 `pip install -r requirements.txt`
 
-Set API keys if using cloud providers:
+Set provider keys when needed:
 
 - OpenAI: `export OPENAI_API_KEY=...`
-- Gemini: `export GEMINI_API_KEY=...` (or `GOOGLE_API_KEY`)
+- Gemini: `export GEMINI_API_KEY=...` or `export GOOGLE_API_KEY=...`
 
-### Run examples
+## Generate prompts
+
+From `src/prompt_generation`: 
+
+- Generate clean data + fetch article info + generate all prompts for a version:
+  `python prompt_generator.py --clean --fetch --all-prompts --version v7`
+
+- Generate only selected prompt files:
+  `python prompt_generator.py --prompts articles_info politics sources source_politics source_pii politics_pii pii_combined_all --version v7`
+
+- Limit prompt length (character truncation) during generation:
+  `python prompt_generator.py --all-prompts --version v7 --context-length 32768`
+
+Generated prompt CSVs are written to `data/prompts/<version>/`.
+
+## Run from CLI
 
 From `src/model_runner`:
 
-- Ollama (auto-detected by model name):
-  `python ollama_llm_executor.py --model llama3.2:3b --version v7.1 --file-type all`
+- Ollama (auto provider):
+  `python main.py --model llama3.2:3b --version v7.1 --file-type all`
 
-- OpenAI Batch (cost-optimized):
-  `python ollama_llm_executor.py --provider openai --openai-mode batch --model gpt-4o-mini --version v7.1 --file-type all --batch-poll-interval 60`
+- OpenAI Batch:
+  `python main.py --provider openai --openai-mode batch --model gpt-4o-mini --version v7.1 --file-type all --batch-poll-interval 60`
 
 - Gemini:
-  `python ollama_llm_executor.py --provider gemini --model gemini-2.0-flash-lite --version v7.1 --file-type all --workers 4`
+  `python main.py --provider gemini --model gemini-2.0-flash-lite --version v7.1 --file-type all --workers 4`
 
-## Running Tests
+## Run with provided shell scripts
 
-`python -m unittest article_fetcher_test.py`
+From `src/model_runner`:
 
-## New analysis scripts
+- OpenAI batch: `bash openai_batch_runner.sh`
+- Gemini: `bash gemini_runner.sh`
+- Ollama models: `bash gemma3_runner.sh`, `bash llama_4_scout_runner.sh`, `bash qwen3_30_runner.sh`, `bash qwen3_4b_runner.sh`, `bash r1-1776_runner.sh`, `bash phi4_mini_runner.sh`
 
-From repository root:
+## Notes
 
-- Top explanation words by model + label:
-  `venv/bin/python src/analysis/top_explanation_words_analysis.py --top-n 10`
-
-- Interactive disagreement explorer (article-level):
-  `venv/bin/python src/analysis/interactive_disagreement_explorer.py --top-n 20`
-
-- Non-interactive preview mode:
-  `venv/bin/python src/analysis/interactive_disagreement_explorer.py --top-n 20 --no-interactive`
-
-Default output folders (driven by `GRAPHS_DIR` in `src/analysis/utils.py`):
-
-- `graphs-2/top_explanation_words/`
-- `graphs-2/interactive_disagreement/`
+- The runner writes outputs under `results/<version>/<model>/llm_outputs/`.
+- `--provider auto` infers provider from model name.
