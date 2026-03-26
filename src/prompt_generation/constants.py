@@ -4,7 +4,7 @@ class Constants:
 
     # Default file paths
     DATA_DIR = '../../data/'
-    DEFAULT_INPUT_FILE = f'{{DATA_DIR}}news_bias_full_data.csv'
+    DEFAULT_INPUT_FILE = f'{DATA_DIR}news_bias_full_data.csv'
     CLEAN_DATA_FILE = f'{DATA_DIR}clean_original_data.csv'
     CLEAN_DATA_FILE_WITH_ARTICLE_INFO = f'{DATA_DIR}clean_data_with_article_info.csv'
     ARTICLES_INFO_FILE = f'{DATA_DIR}data_articles_info.csv'
@@ -31,7 +31,7 @@ class Constants:
         'pii_combined_all': DEFAULT_PROMPT_PII_COMBINED_ALL_FILE,
         'politics_pii': DEFAULT_PROMPT_POLITICS_PII_FILE,
         'source_pii': DEFAULT_PROMPT_SOURCE_PII_FILE,
-        # 'test_two_queries': DEFAULT_PROMPT_TEST_TWO_QUERIES_FILE,
+        'test_two_queries': DEFAULT_PROMPT_TEST_TWO_QUERIES_FILE,
     }
     
     MODEL_NAME = "llama3.1:8b"

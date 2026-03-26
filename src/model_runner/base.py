@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from .models import LLM_RESULT_COLUMNS, SYSTEM_PROMPT
-from .utils import sanitize_model_name
+from models import LLM_RESULT_COLUMNS, SYSTEM_PROMPT
+from utils import sanitize_model_name
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT) not in sys.path:

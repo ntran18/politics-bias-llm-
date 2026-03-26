@@ -6,9 +6,9 @@ import time
 
 from openai import BadRequestError, OpenAI
 
-from .base import BaseBiasRunner
-from .models import LLM_RESULT_COLUMNS, PoliticalBiasAssessment
-from .utils import extract_text_content
+from base import BaseBiasRunner
+from models import LLM_RESULT_COLUMNS, PoliticalBiasAssessment
+from utils import extract_text_content
 
 
 class OpenAIBatchBiasRunner(BaseBiasRunner):

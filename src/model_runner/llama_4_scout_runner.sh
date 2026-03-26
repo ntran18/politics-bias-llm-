@@ -5,8 +5,9 @@ set -e
 
 # --- Configuration ---
 MODEL="llama4:scout"
-VERSIONS=("v6.2" "v6.3" "v6.4" "v6.5" "v6.6")
-TEMP=0.7
+VERSIONS=("test")
+FILE_TYPE="${1:-test_two_queries}"
+TEMP=0.0
 WORKERS=2
 CHECKPOINT=8
 PORT=11438
@@ -19,7 +20,8 @@ for VERSION in "${VERSIONS[@]}"; do
     echo "------------------------------------------"
     
     python main.py \
-        --file-type all \
+        --provider ollama \
+        --file-type "$FILE_TYPE" \
         --model "$MODEL" \
         --version "$VERSION" \
         --workers $WORKERS \

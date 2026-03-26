@@ -2,8 +2,8 @@ import sys
 
 from pydantic import ValidationError
 
-from .base import BaseBiasRunner
-from .models import OLLAMA_DEFAULT_PORT, PoliticalBiasAssessment
+from base import BaseBiasRunner
+from models import OLLAMA_DEFAULT_PORT, PoliticalBiasAssessment
 
 try:
     from ollama import AsyncClient as OllamaAsyncClient

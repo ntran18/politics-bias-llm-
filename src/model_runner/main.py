@@ -1,8 +1,8 @@
 import argparse
 
-from .gemini_runner import GeminiBiasRunner
-from .ollama_runner import OllamaBiasRunner
-from .openai_runner import OpenAIBatchBiasRunner
+from gemini_runner import GeminiBiasRunner
+from ollama_runner import OllamaBiasRunner
+from openai_runner import OpenAIBatchBiasRunner
 
 from prompt_generation.constants import Constants
 
