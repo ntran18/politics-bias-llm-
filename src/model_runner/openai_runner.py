@@ -7,7 +7,6 @@ import time
 from openai import BadRequestError, OpenAI
 
 from base import BaseBiasRunner
-from models import LLM_RESULT_COLUMNS, PoliticalBiasAssessment
 from utils import extract_text_content
 
 
@@ -54,7 +53,7 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
                         "type": "json_schema",
                         "json_schema": {
                             "name": "political_bias_assessment",
-                            "schema": PoliticalBiasAssessment.model_json_schema(),
+                            "schema": self.assessment_model.model_json_schema(),
                         },
                     },
                 }
@@ -111,7 +110,7 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
             choices = body.get("choices", [])
             message = choices[0].get("message", {}) if choices else {}
             content = extract_text_content(message.get("content", ""))
-            llm_data = PoliticalBiasAssessment.model_validate_json(content)
+            llm_data = self.assessment_model.model_validate_json(content)
         except Exception as exc:
             llm_error = str(exc)
             print(f"[Warning] Failed to parse batch item {custom_id}: {exc}", file=sys.stderr)
@@ -134,7 +133,8 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
 
         output_path = self._setup_output_file(input_file_path)
         original_columns = [column for column in df.columns.tolist() if column != "prompt"]
-        all_columns = original_columns + LLM_RESULT_COLUMNS
+        all_columns = original_columns + self.get_llm_result_columns()
+        print("All columns for output:", all_columns)
 
         processed_keys = self._initialize_output_file(output_path, all_columns)
         mask = df.apply(

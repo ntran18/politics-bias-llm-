@@ -29,7 +29,11 @@ def build_runner(args):
         "checkpoint_size": args.checkpoint_size,
         "temperature": args.model_temperature,
         "context_length": args.context_length,
+        "include_explanation": args.include_explanation,
+        "include_cot": args.include_cot,
     }
+    
+    print("is including cot?", args.include_cot)
 
     if provider == "openai":
         if args.openai_mode != "batch":
@@ -64,6 +68,16 @@ def main():
     parser.add_argument("--prompt-dir", type=str, default=Constants.DEFAULT_PROMPT_DIR)
     parser.add_argument("--ollama-server-port", type=int, default=11434)
     parser.add_argument("--context-length", type=int, default=2048)
+    parser.add_argument(
+        "--include-explanation",
+        action="store_true",
+        help="Include llm_explanation in model output and output CSV.",
+    )
+    parser.add_argument(
+        "--include-cot",
+        action="store_true",
+        help="Enable Chain of Thought reasoning in a dedicated JSON field..",
+    )
 
     parser.add_argument(
         "--provider",

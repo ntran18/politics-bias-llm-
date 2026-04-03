@@ -8,7 +8,6 @@ from google.genai import types
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from base import BaseBiasRunner
-from models import PoliticalBiasAssessment
 
 load_dotenv()
 class GeminiBiasRunner(BaseBiasRunner):
@@ -24,7 +23,7 @@ class GeminiBiasRunner(BaseBiasRunner):
 
     @retry(wait=wait_random_exponential(min=10, max=120), stop=stop_after_attempt(10))
     def _sync_generate(self, prompt: str):
-        schema = PoliticalBiasAssessment.model_json_schema()
+        schema = self.assessment_model.model_json_schema()
 
         config = types.GenerateContentConfig(
             temperature=self.temperature,
@@ -47,7 +46,7 @@ class GeminiBiasRunner(BaseBiasRunner):
             response = await asyncio.to_thread(self._sync_generate, prompt)
             
             if response.text:
-                llm_data = PoliticalBiasAssessment.model_validate_json(response.text)
+                llm_data = self.assessment_model.model_validate_json(response.text)
             
         except Exception as exc:
             llm_error = str(exc)

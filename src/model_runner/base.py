@@ -7,14 +7,19 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from models import LLM_RESULT_COLUMNS, SYSTEM_PROMPT
 from utils import sanitize_model_name
+from models import get_assessment_model
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT) not in sys.path:
     sys.path.append(str(SRC_ROOT))
 
 from prompt_generation.constants import Constants
+from system_prompts import (
+    SYSTEM_PROMPT_NO_EXPLANATION,
+    SYSTEM_PROMPT_WITH_EXPLANATION,
+    SYSTEM_PROMPT_WITH_COT,
+)
 
 
 class BaseBiasRunner(ABC):
@@ -27,10 +32,13 @@ class BaseBiasRunner(ABC):
         checkpoint_size: int,
         temperature: float,
         context_length: int = 2048,
+        include_explanation: bool = False,
+        include_cot: bool = False,
     ):
         self.model_name = model_name
         self.output_dir = os.path.join(
             output_dir,
+            version.split(".")[0],
             version,
             sanitize_model_name(model_name),
             Constants.DEFAULT_LLM_OUTPUT_FOLDER,
@@ -39,8 +47,13 @@ class BaseBiasRunner(ABC):
         self.checkpoint_size = checkpoint_size
         self.temperature = temperature
         self.version = version
-        self.system_prompt = SYSTEM_PROMPT
+        self.include_explanation = include_explanation
+        self.include_cot = include_cot
         self.context_length = context_length
+        
+        self.system_prompt = self._get_system_prompt()
+        self.assessment_model = get_assessment_model(self.include_explanation, self.include_cot)
+        print("system prompt:", self.system_prompt)
 
     def _load_data(self, input_file: str) -> pd.DataFrame | None:
         if not os.path.exists(input_file):
@@ -60,33 +73,40 @@ class BaseBiasRunner(ABC):
             return None
 
         return data
+    
+    def _get_system_prompt(self) -> str:
+        if self.include_cot:
+            return SYSTEM_PROMPT_WITH_COT
+        return SYSTEM_PROMPT_WITH_EXPLANATION if self.include_explanation else SYSTEM_PROMPT_NO_EXPLANATION
 
     def _save_results_buffer(self, results_buffer, all_columns, output_path: str) -> None:
         final_rows = []
+        skipped_error_count = 0
         for result in results_buffer:
+            llm_error = result.get("llm_error")
             final_row = dict(result["row_data"])
             llm_data = result.get("llm_data")
+            if llm_error or llm_data is None:
+                skipped_error_count += 1
+                continue
+
             if llm_data is not None:
                 final_row.update(
                     {
                         "llm_assessment": llm_data.assessment,
                         "llm_confidence": llm_data.confidence_score,
-                        "llm_explanation": llm_data.explanation,
                         "llm_model": result["llm_model"],
-                        "llm_error": result.get("llm_error"),
+                        "llm_error": None,
                     }
                 )
-            else:
-                final_row.update(
-                    {
-                        "llm_assessment": None,
-                        "llm_confidence": None,
-                        "llm_explanation": None,
-                        "llm_model": result["llm_model"],
-                        "llm_error": result.get("llm_error") or "unknown_error",
-                    }
-                )
+                if self.include_explanation or self.include_cot:
+                    final_row["llm_explanation"] = getattr(llm_data, "explanation", None)
+                if self.include_cot:
+                    final_row["llm_thought_process"] = getattr(llm_data, "thought_process", None)
             final_rows.append(final_row)
+
+        if skipped_error_count:
+            print(f"[Skip] Dropped {skipped_error_count} errored results (not saved).")
 
         if not final_rows:
             return
@@ -197,7 +217,7 @@ class BaseBiasRunner(ABC):
         output_path = self._setup_output_file(input_file_path)
 
         original_columns = [column for column in df.columns.tolist() if column != "prompt"]
-        all_columns = original_columns + LLM_RESULT_COLUMNS
+        all_columns = original_columns + self.get_llm_result_columns()
 
         processed_keys = self._initialize_output_file(output_path, all_columns)
         mask = df.apply(
@@ -227,6 +247,21 @@ class BaseBiasRunner(ABC):
             f"--- Finished processing {os.path.basename(input_file_path)}. "
             f"Results written to: {output_path} ---"
         )
+    
+    def get_llm_result_columns(self) -> list[str]:
+        # Start with the base 4 columns
+        cols = ["llm_assessment", "llm_confidence", "llm_model", "llm_error"]
+        
+        # Add CoT column if requested
+        if self.include_cot:
+            cols.append("llm_thought_process")
+        
+        # Add Explanation column if requested (CoT usually implies an explanation too)
+        if self.include_explanation or self.include_cot:
+            if "llm_explanation" not in cols:
+                cols.append("llm_explanation")
+                
+        return cols
 
     def run_experiment(self, file_type: str, prompt_dir: str) -> None:
         if file_type == "all":

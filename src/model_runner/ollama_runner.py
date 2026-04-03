@@ -3,7 +3,6 @@ import sys
 from pydantic import ValidationError
 
 from base import BaseBiasRunner
-from models import OLLAMA_DEFAULT_PORT, PoliticalBiasAssessment
 
 try:
     from ollama import AsyncClient as OllamaAsyncClient
@@ -12,9 +11,8 @@ except ImportError:
     OllamaAsyncClient = None
     OllamaResponseError = Exception
 
-
 class OllamaBiasRunner(BaseBiasRunner):
-    def __init__(self, ollama_port: int = OLLAMA_DEFAULT_PORT, **kwargs):
+    def __init__(self, ollama_port: int = 11434, **kwargs):
         if OllamaAsyncClient is None:
             raise ImportError("ollama package is required for OllamaBiasRunner")
         super().__init__(**kwargs)
@@ -32,12 +30,12 @@ class OllamaBiasRunner(BaseBiasRunner):
                     {"role": "user", "content": prompt},
                 ],
                 options={"temperature": self.temperature, "num_ctx": self.context_length},
-                format=PoliticalBiasAssessment.model_json_schema(),
+                format=self.assessment_model.model_json_schema(),
                 keep_alive="5m",
             )
 
             response_text = response["message"]["content"].strip()
-            llm_data = PoliticalBiasAssessment.model_validate_json(response_text)
+            llm_data = self.assessment_model.model_validate_json(response_text)
 
         except ValidationError as exc:
             llm_error = str(exc)
