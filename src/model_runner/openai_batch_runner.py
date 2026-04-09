@@ -17,6 +17,7 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
         self,
         batch_poll_interval: int = 30,
         openai_api_key: str | None = None,
+        reasoning_effort: str = "medium", 
         **kwargs,
     ):
         if OpenAI is None:
@@ -29,6 +30,8 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
 
         self._client = OpenAI(api_key=api_key)
         self.batch_poll_interval = batch_poll_interval
+        self.reasoning_effort = reasoning_effort
+        self.url = "/v1/chat/completions"
 
     async def _fetch_llm_response(self, prompt: str, row_data: dict, index: int) -> dict:
         raise NotImplementedError("OpenAI batch runner does not use per-row async requests")
@@ -41,10 +44,8 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
                 row_data = row.drop("prompt").to_dict()
                 custom_id = f"{row_data['article_id']}::{row_data['index']}::{sequence_number}"
                 custom_id_to_row[custom_id] = row_data
-
                 body = {
                     "model": self.model_name,
-                    "temperature": self.temperature,
                     "messages": [
                         {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": row["prompt"]},
@@ -57,10 +58,12 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
                         },
                     },
                 }
+                if "gpt-5.4" not in self.model_name.lower():
+                    body["temperature"] = self.temperature
                 request_line = {
                     "custom_id": custom_id,
                     "method": "POST",
-                    "url": "/v1/chat/completions",
+                    "url": self.url,
                     "body": body,
                 }
                 handle.write(json.dumps(request_line, ensure_ascii=False) + "\n")
@@ -101,12 +104,18 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
 
         llm_data = None
         llm_error = None
+        native_cot = None
         try:
             response = parsed_line.get("response", {})
-            if response.get("status_code") != 200:
-                raise ValueError(f"status_code={response.get('status_code')}")
-
             body = response.get("body", {})
+            
+            reasoning_obj = body.get("reasoning")
+            if reasoning_obj and "summary" in reasoning_obj:
+                summaries = reasoning_obj.get("summary", [])
+                if summaries:
+                    native_cot = summaries[0].get("text")
+
+
             choices = body.get("choices", [])
             message = choices[0].get("message", {}) if choices else {}
             content = extract_text_content(message.get("content", ""))
@@ -121,6 +130,7 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
             "llm_data": llm_data,
             "llm_model": self.model_name,
             "llm_error": llm_error,
+            "llm_native_cot": native_cot,
         }
 
     def _process_single_file(self, input_file_path: str) -> None:
@@ -134,7 +144,6 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
         output_path = self._setup_output_file(input_file_path)
         original_columns = [column for column in df.columns.tolist() if column != "prompt"]
         all_columns = original_columns + self.get_llm_result_columns()
-        print("All columns for output:", all_columns)
 
         processed_keys = self._initialize_output_file(output_path, all_columns)
         mask = df.apply(
@@ -175,7 +184,7 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
             try:
                 batch = self._client.batches.create(
                     input_file_id=input_file.id,
-                    endpoint="/v1/chat/completions",
+                    endpoint=self.url,
                     completion_window="24h",
                     metadata={
                         "model": self.model_name,
@@ -210,29 +219,41 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
             print(f"Created batch job: {batch.id}")
             batch = self._poll_batch(batch.id)
 
-            if batch.status != "completed" or not getattr(batch, "output_file_id", None):
-                print(
-                    f"[Error] Batch did not complete successfully. "
-                    f"status={batch.status}, error_file_id={getattr(batch, 'error_file_id', None)}"
-                )
-                return
+            if batch.status == "completed":
+                output_file_id = getattr(batch, "output_file_id", None)
+                
+                if output_file_id:
+                    output_text = self._download_file_text(batch.output_file_id)
 
-            output_text = self._download_file_text(batch.output_file_id)
-
-            results_buffer = []
-            for line in output_text.splitlines():
-                parsed_result = self._parse_batch_output_line(line, custom_id_to_row)
-                if parsed_result is None:
-                    continue
-
-                results_buffer.append(parsed_result)
-
-                if len(results_buffer) >= self.checkpoint_size:
-                    self._save_results_buffer(results_buffer, all_columns, output_path)
                     results_buffer = []
+                    for line in output_text.splitlines():
+                        parsed_result = self._parse_batch_output_line(line, custom_id_to_row)
+                        if parsed_result is None:
+                            continue
 
-            if results_buffer:
-                self._save_results_buffer(results_buffer, all_columns, output_path)
+                        results_buffer.append(parsed_result)
+
+                        if len(results_buffer) >= self.checkpoint_size:
+                            self._save_results_buffer(results_buffer, all_columns, output_path)
+                            results_buffer = []
+
+                    if results_buffer:
+                        self._save_results_buffer(results_buffer, all_columns, output_path)
+                else:
+                    print("[Warning] Batch status is 'completed' but output_file_id is None.")
+                    print("This usually means all requests in the batch failed.")
+                    
+                    # Trigger your error printing logic manually
+                    error_file_id = getattr(batch, 'error_file_id', None)
+                    if error_file_id:
+                        print(f"Downloading error details from: {error_file_id}")
+                        error_content = self._download_file_text(error_file_id)
+                        for line in error_content.splitlines():
+                            error_entry = json.loads(line)
+                            err_msg = error_entry.get("response", {}).get("body", {}).get("error", {}).get("message")
+                            print(f" - Request {error_entry.get('custom_id')}: {err_msg}")
+                
+                return
 
         print(
             f"--- Finished processing {os.path.basename(input_file_path)}. "

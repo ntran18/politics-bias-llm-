@@ -4,7 +4,7 @@ from .models import (
     PoliticalBiasAssessment,
 )
 from .ollama_runner import OllamaBiasRunner
-from .openai_runner import OpenAIBatchBiasRunner
+from .openai_batch_runner import OpenAIBatchBiasRunner
 from .utils import extract_text_content, sanitize_model_name
 
 __all__ = [

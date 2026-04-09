@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from utils import sanitize_model_name
-from models import get_assessment_model
+from models import PoliticalBiasAssessment, PoliticalBiasAssessmentNoExplanation, PoliticalBiasAssessmentWithCoT
 
 SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT) not in sys.path:
@@ -33,7 +33,8 @@ class BaseBiasRunner(ABC):
         temperature: float,
         context_length: int = 2048,
         include_explanation: bool = False,
-        include_cot: bool = False,
+        include_prompted_cot: bool = False,
+        include_native_cot: bool = False,
     ):
         self.model_name = model_name
         self.output_dir = os.path.join(
@@ -48,11 +49,11 @@ class BaseBiasRunner(ABC):
         self.temperature = temperature
         self.version = version
         self.include_explanation = include_explanation
-        self.include_cot = include_cot
+        self.include_prompted_cot = include_prompted_cot
+        self.include_native_cot = include_native_cot
         self.context_length = context_length
         
-        self.system_prompt = self._get_system_prompt()
-        self.assessment_model = get_assessment_model(self.include_explanation, self.include_cot)
+        self.system_prompt, self.assessment_model = self._get_system_prompt_and_assessment_model()
         print("system prompt:", self.system_prompt)
 
     def _load_data(self, input_file: str) -> pd.DataFrame | None:
@@ -74,12 +75,15 @@ class BaseBiasRunner(ABC):
 
         return data
     
-    def _get_system_prompt(self) -> str:
-        if self.include_cot:
-            return SYSTEM_PROMPT_WITH_COT
-        return SYSTEM_PROMPT_WITH_EXPLANATION if self.include_explanation else SYSTEM_PROMPT_NO_EXPLANATION
+    def _get_system_prompt_and_assessment_model(self) -> tuple[str, type]:
+        if self.include_prompted_cot or self.include_native_cot:
+            return SYSTEM_PROMPT_WITH_COT, PoliticalBiasAssessmentWithCoT
+        if self.include_explanation:
+            return SYSTEM_PROMPT_WITH_EXPLANATION, PoliticalBiasAssessment
+        return SYSTEM_PROMPT_NO_EXPLANATION, PoliticalBiasAssessmentNoExplanation
 
     def _save_results_buffer(self, results_buffer, all_columns, output_path: str) -> None:
+        print(f"Processing results buffer with {len(results_buffer)} entries...")
         final_rows = []
         skipped_error_count = 0
         for result in results_buffer:
@@ -99,10 +103,12 @@ class BaseBiasRunner(ABC):
                         "llm_error": None,
                     }
                 )
-                if self.include_explanation or self.include_cot:
+                if self.include_explanation or self.include_prompted_cot or self.include_native_cot:
                     final_row["llm_explanation"] = getattr(llm_data, "explanation", None)
-                if self.include_cot:
+                if self.include_prompted_cot or self.include_native_cot:
                     final_row["llm_thought_process"] = getattr(llm_data, "thought_process", None)
+                if self.include_native_cot:
+                    final_row["llm_native_cot"] = result.get("llm_native_cot", None)
             final_rows.append(final_row)
 
         if skipped_error_count:
@@ -252,14 +258,15 @@ class BaseBiasRunner(ABC):
         # Start with the base 4 columns
         cols = ["llm_assessment", "llm_confidence", "llm_model", "llm_error"]
         
-        # Add CoT column if requested
-        if self.include_cot:
+        if self.include_prompted_cot or self.include_native_cot:
             cols.append("llm_thought_process")
         
-        # Add Explanation column if requested (CoT usually implies an explanation too)
-        if self.include_explanation or self.include_cot:
+        if self.include_explanation or self.include_prompted_cot or self.include_native_cot:
             if "llm_explanation" not in cols:
                 cols.append("llm_explanation")
+                
+        if self.include_native_cot:
+            cols.append("llm_native_cot")
                 
         return cols
 

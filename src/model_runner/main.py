@@ -2,7 +2,8 @@ import argparse
 
 from gemini_runner import GeminiBiasRunner
 from ollama_runner import OllamaBiasRunner
-from openai_runner import OpenAIBatchBiasRunner
+from openai_batch_runner import OpenAIBatchBiasRunner
+from openai_direct_runner import OpenAIDirectBiasRunner
 
 from prompt_generation.constants import Constants
 
@@ -30,18 +31,23 @@ def build_runner(args):
         "temperature": args.model_temperature,
         "context_length": args.context_length,
         "include_explanation": args.include_explanation,
-        "include_cot": args.include_cot,
+        "include_prompted_cot": args.include_prompted_cot,
+        "include_native_cot": args.include_native_cot,
     }
-    
-    print("is including cot?", args.include_cot)
 
     if provider == "openai":
-        if args.openai_mode != "batch":
-            raise ValueError("Only OpenAI batch mode is currently implemented")
-
         openai_kwargs = {key: value for key, value in common_kwargs.items() if key != "workers"}
+        # Auto-detect mode: native CoT requires direct Responses API; otherwise use Batch API.
+        if args.include_native_cot:
+            return OpenAIDirectBiasRunner(
+                reasoning_effort=args.reasoning_effort,
+                reasoning_summary=args.reasoning_summary,
+                **common_kwargs,
+            )
+
         return OpenAIBatchBiasRunner(
             batch_poll_interval=args.batch_poll_interval,
+            reasoning_effort=args.reasoning_effort,
             **openai_kwargs,
         )
 
@@ -74,9 +80,28 @@ def main():
         help="Include llm_explanation in model output and output CSV.",
     )
     parser.add_argument(
-        "--include-cot",
+        "--include-prompted-cot",
         action="store_true",
         help="Enable Chain of Thought reasoning in a dedicated JSON field..",
+    )
+    parser.add_argument(
+        "--include-native-cot",
+        action="store_true",
+        help="Include native CoT from the model if available (e.g. OpenAI's 'reasoning_content'). This is separate from prompted CoT and is only included if the model provides it.",
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        type=str,
+        default="medium",
+        choices=["low", "medium", "high"],
+        help="Only applicable if --include-native-cot is set. Instructs the model on how much effort to put into its internal reasoning. This is a custom parameter and may not be supported by all models.",
+    )
+    parser.add_argument(
+        "--reasoning-summary",
+        type=str,
+        default="detailed",
+        choices=["auto", "detailed"],
+        help="Only applicable if --include-native-cot is set. Controls reasoning summary detail for direct OpenAI responses.",
     )
 
     parser.add_argument(
@@ -85,13 +110,6 @@ def main():
         default="auto",
         choices=["auto", "ollama", "openai", "gemini"],
         help="Provider override. Default uses model name inference.",
-    )
-    parser.add_argument(
-        "--openai-mode",
-        type=str,
-        default="batch",
-        choices=["batch"],
-        help="OpenAI execution mode. Batch is cost-optimized and async up to 24h.",
     )
     parser.add_argument(
         "--batch-poll-interval",
