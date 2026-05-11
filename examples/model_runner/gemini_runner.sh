@@ -29,7 +29,16 @@ echo "Using Python interpreter: $PYTHON_BIN"
 
 MODEL="gemini-2.5-flash-lite"
 FILE_TYPE="${1:-test_two_queries}"
-VERSIONS=("${2:-test}")
+DEFAULT_VERSIONS=("test")
+
+if [[ $# -ge 2 ]]; then
+    VERSIONS=("${@:2}")
+    if [[ ${#VERSIONS[@]} -eq 1 && "${VERSIONS[0]}" == *,* ]]; then
+        IFS=',' read -r -a VERSIONS <<< "${VERSIONS[0]}"
+    fi
+else
+    VERSIONS=("${DEFAULT_VERSIONS[@]}")
+fi
 TEMP=0.0
 WORKERS=1
 CHECKPOINT=50
@@ -50,7 +59,8 @@ for VERSION in "${VERSIONS[@]}"; do
         --workers $WORKERS \
         --model-temperature $TEMP \
         --checkpoint-size $CHECKPOINT \
-        --context-length $CTX_LEN
+        --context-length $CTX_LEN \
+        --include-chained-prompts
 
     echo "Completed Gemini model=$MODEL version=$VERSION file_type=$FILE_TYPE"
 done

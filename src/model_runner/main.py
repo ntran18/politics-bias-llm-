@@ -33,23 +33,34 @@ def build_runner(args):
         "include_explanation": args.include_explanation,
         "include_prompted_cot": args.include_prompted_cot,
         "include_native_cot": args.include_native_cot,
+        "include_chained_prompts": args.include_chained_prompts,
     }
 
     if provider == "openai":
         openai_kwargs = {key: value for key, value in common_kwargs.items() if key != "workers"}
         # Auto-detect mode: native CoT requires direct Responses API; otherwise use Batch API.
-        if args.include_native_cot:
+        openai_direct_mode = args.openai_mode == "direct" or (args.include_native_cot)
+        openai_batch_mode = args.openai_mode == "batch" or (not args.include_native_cot)
+        openai_mode = "direct" if openai_direct_mode else "batch"
+        if args.openai_mode == "auto":
+            openai_mode = "direct" if args.include_native_cot else "batch"
+        if openai_direct_mode and openai_batch_mode:
+            print(
+                "Warning: Both direct and batch modes are enabled for OpenAI. Defaulting to direct mode due to native CoT usage. To use batch mode without native CoT, disable native CoT or explicitly set --openai-mode to 'batch'."
+            )
+            
+        if openai_mode == "direct":
             return OpenAIDirectBiasRunner(
                 reasoning_effort=args.reasoning_effort,
                 reasoning_summary=args.reasoning_summary,
                 **common_kwargs,
             )
-
-        return OpenAIBatchBiasRunner(
-            batch_poll_interval=args.batch_poll_interval,
-            reasoning_effort=args.reasoning_effort,
-            **openai_kwargs,
-        )
+        else:
+            return OpenAIBatchBiasRunner(
+                batch_poll_interval=args.batch_poll_interval,
+                reasoning_effort=args.reasoning_effort,
+                **openai_kwargs,
+            )
 
     if provider == "gemini":
         return GeminiBiasRunner(**common_kwargs)
@@ -85,6 +96,12 @@ def main():
         help="Enable Chain of Thought reasoning in a dedicated JSON field..",
     )
     parser.add_argument(
+        "--include-chained-prompts",
+        action="store_true",
+        help="Enable additional chained prompts for follow-up questioning based on initial response. This is separate from prompted CoT and is focused on iterative refinement rather than single-pass CoT reasoning.",
+    )
+
+    parser.add_argument(
         "--include-native-cot",
         action="store_true",
         help="Include native CoT from the model if available (e.g. OpenAI's 'reasoning_content'). This is separate from prompted CoT and is only included if the model provides it.",
@@ -116,6 +133,12 @@ def main():
         type=int,
         default=30,
         help="Seconds between OpenAI batch status polls.",
+    )
+    parser.add_argument(
+        "--openai-mode",
+        type=str,        default="auto",
+        choices=["auto", "direct", "batch"],
+        help="Only applicable for OpenAI provider. Auto-selects direct vs batch mode based on native CoT usage, but can be manually overridden if desired (e.g. to use direct mode without native CoT).",
     )
 
     args = parser.parse_args()

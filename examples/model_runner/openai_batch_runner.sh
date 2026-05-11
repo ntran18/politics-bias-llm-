@@ -27,9 +27,18 @@ fi
 
 echo "Using Python interpreter: $PYTHON_BIN"
 
-MODEL="gpt-4o-mini"
+MODEL="gpt-5.4-mini"
 FILE_TYPE="${1:-test_two_queries}"
-VERSIONS=("${2:-test}")
+DEFAULT_VERSIONS=("test")
+
+if [[ $# -ge 2 ]]; then
+    VERSIONS=("${@:2}")
+    if [[ ${#VERSIONS[@]} -eq 1 && "${VERSIONS[0]}" == *,* ]]; then
+        IFS=',' read -r -a VERSIONS <<< "${VERSIONS[0]}"
+    fi
+else
+    VERSIONS=("${DEFAULT_VERSIONS[@]}")
+fi
 TEMP=0.0
 CHECKPOINT=100
 POLL_INTERVAL=60
@@ -41,7 +50,7 @@ for VERSION in "${VERSIONS[@]}"; do
 
     "$PYTHON_BIN" "$REPO_ROOT/src/model_runner/main.py" \
         --provider openai \
-        --openai-mode batch \
+        --openai-mode direct \
         --file-type "$FILE_TYPE" \
         --model "$MODEL" \
         --version "$VERSION" \
@@ -49,7 +58,8 @@ for VERSION in "${VERSIONS[@]}"; do
         --output-dir "$REPO_ROOT/results" \
         --model-temperature $TEMP \
         --checkpoint-size $CHECKPOINT \
-        --batch-poll-interval $POLL_INTERVAL
+        --batch-poll-interval $POLL_INTERVAL \
+        --include-chained-prompts
 
     echo "Completed OpenAI Batch model=$MODEL version=$VERSION file_type=$FILE_TYPE"
 done

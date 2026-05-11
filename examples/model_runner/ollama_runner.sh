@@ -12,7 +12,16 @@ fi
 
 MODEL="llama4:scout"
 FILE_TYPE="${1:-test_two_queries}"
-VERSIONS=("${2:-test}")
+DEFAULT_VERSIONS=("v8.1" "v8.2" "v8.3")
+
+if [[ $# -ge 2 ]]; then
+    VERSIONS=("${@:2}")
+    if [[ ${#VERSIONS[@]} -eq 1 && "${VERSIONS[0]}" == *,* ]]; then
+        IFS=',' read -r -a VERSIONS <<< "${VERSIONS[0]}"
+    fi
+else
+    VERSIONS=("${DEFAULT_VERSIONS[@]}")
+fi
 TEMP=0.0
 WORKERS=2
 CHECKPOINT=8

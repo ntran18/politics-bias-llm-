@@ -7,6 +7,7 @@ class Constants:
     DEFAULT_INPUT_FILE = f'{DATA_DIR}news_bias_full_data.csv'
     CLEAN_DATA_FILE = f'{DATA_DIR}clean_original_data.csv'
     CLEAN_DATA_FILE_WITH_ARTICLE_INFO = f'{DATA_DIR}clean_data_with_article_info.csv'
+    SAMPLE_ROWS_DATA_FILE = f'{DATA_DIR}sampled_rows_10pct.csv'
     ARTICLES_INFO_FILE = f'{DATA_DIR}data_articles_info.csv'
     DEFAULT_PROMPT_DIR = f'{DATA_DIR}prompts/'
     DEFAULT_OUTPUT_DIR = '../../results/'

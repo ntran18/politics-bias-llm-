@@ -19,6 +19,8 @@ from system_prompts import (
     SYSTEM_PROMPT_NO_EXPLANATION,
     SYSTEM_PROMPT_WITH_EXPLANATION,
     SYSTEM_PROMPT_WITH_COT,
+    SYSTEM_PROMPT_REASONING_ONLY,
+    SYSTEM_PROMPT_CHAINED_JUDGE,
 )
 
 
@@ -35,6 +37,7 @@ class BaseBiasRunner(ABC):
         include_explanation: bool = False,
         include_prompted_cot: bool = False,
         include_native_cot: bool = False,
+        include_chained_prompts: bool = False,
     ):
         self.model_name = model_name
         self.output_dir = os.path.join(
@@ -51,6 +54,7 @@ class BaseBiasRunner(ABC):
         self.include_explanation = include_explanation
         self.include_prompted_cot = include_prompted_cot
         self.include_native_cot = include_native_cot
+        self.include_chained_prompts = include_chained_prompts
         self.context_length = context_length
         
         self.system_prompt, self.assessment_model = self._get_system_prompt_and_assessment_model()
@@ -76,6 +80,8 @@ class BaseBiasRunner(ABC):
         return data
     
     def _get_system_prompt_and_assessment_model(self) -> tuple[str, type]:
+        if self.include_chained_prompts:
+            return [SYSTEM_PROMPT_REASONING_ONLY, SYSTEM_PROMPT_CHAINED_JUDGE],  PoliticalBiasAssessment
         if self.include_prompted_cot or self.include_native_cot:
             return SYSTEM_PROMPT_WITH_COT, PoliticalBiasAssessmentWithCoT
         if self.include_explanation:
@@ -91,6 +97,9 @@ class BaseBiasRunner(ABC):
             final_row = dict(result["row_data"])
             llm_data = result.get("llm_data")
             if llm_error or llm_data is None:
+                print(f"\n[Warning] Skipping row {final_row.get('index', 'N/A')} due to LLM error: {llm_error}")
+                print("Row data:", final_row)
+                print("LLM_data:", llm_data)
                 skipped_error_count += 1
                 continue
 
@@ -103,10 +112,12 @@ class BaseBiasRunner(ABC):
                         "llm_error": None,
                     }
                 )
-                if self.include_explanation or self.include_prompted_cot or self.include_native_cot:
+                if self.include_explanation or self.include_prompted_cot or self.include_native_cot or self.include_chained_prompts:
                     final_row["llm_explanation"] = getattr(llm_data, "explanation", None)
                 if self.include_prompted_cot or self.include_native_cot:
                     final_row["llm_thought_process"] = getattr(llm_data, "thought_process", None)
+                if self.include_chained_prompts:
+                    final_row["llm_thought_process"] = result.get("llm_thought_process", None)
                 if self.include_native_cot:
                     final_row["llm_native_cot"] = result.get("llm_native_cot", None)
             final_rows.append(final_row)
@@ -258,10 +269,10 @@ class BaseBiasRunner(ABC):
         # Start with the base 4 columns
         cols = ["llm_assessment", "llm_confidence", "llm_model", "llm_error"]
         
-        if self.include_prompted_cot or self.include_native_cot:
+        if self.include_prompted_cot or self.include_native_cot or self.include_chained_prompts:
             cols.append("llm_thought_process")
         
-        if self.include_explanation or self.include_prompted_cot or self.include_native_cot:
+        if self.include_explanation or self.include_prompted_cot or self.include_native_cot or self.include_chained_prompts:
             if "llm_explanation" not in cols:
                 cols.append("llm_explanation")
                 

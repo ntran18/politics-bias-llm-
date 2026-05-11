@@ -32,6 +32,9 @@ class OpenAIBatchBiasRunner(BaseBiasRunner):
         self.batch_poll_interval = batch_poll_interval
         self.reasoning_effort = reasoning_effort
         self.url = "/v1/chat/completions"
+        
+        if self.include_chained_prompts:
+            raise ValueError("Chained prompts are not supported in OpenAI batch mode. Use --openai-mode direct.")
 
     async def _fetch_llm_response(self, prompt: str, row_data: dict, index: int) -> dict:
         raise NotImplementedError("OpenAI batch runner does not use per-row async requests")
