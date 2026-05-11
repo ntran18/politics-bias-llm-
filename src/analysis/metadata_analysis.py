@@ -62,12 +62,10 @@ print(human_row.head())
 # ============================================================
 # 2. LOAD ALL MODEL OUTPUTS
 # ============================================================
-BASE_PATH = Path("../../results/v8/v8.1/")
-
 all_rows = []
 
 for prompt_name, filename in PROMPT_FILES.items():
-    df = utils.load_model_outputs(BASE_PATH, filename)
+    df = utils.load_model_outputs(Constants.REASONING_CONDITION_PATHS["Direct"], filename)
     if df.empty:
         continue
     df["Prompt"] = prompt_name

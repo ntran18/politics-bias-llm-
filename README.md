@@ -1,82 +1,178 @@
-# LLM Political Bias Runner
+# Political Bias in LLMs: Research Pipeline (Test Profile)
 
-This repository runs political-bias classification prompts against multiple LLM providers and saves structured CSV outputs.
+This repository evaluates political-bias judgments from multiple LLMs under different prompt conditions, then runs reproducible analysis workflows that produce research artifacts (CSV tables and figures).
 
-## Supported providers
+This README is intentionally configured for test execution only. All commands below default to test-safe settings (`version=test`, `file-type=test_two_queries`).
 
-- Ollama (local models)
-- OpenAI Batch API
-- Gemini API
+## 1. Research Scope
 
-## Input and output
+### Core question
 
-Input prompt CSVs must include:
+How stable are LLM bias judgments across model families, metadata framing, and reasoning strategy?
+
+### Analysis modules
+
+- Q1: Overall alignment with human labels (`most_aligned_models.py`)
+- Q2: Alignment by political subgroup (`models_align_with_politics.py`)
+- Q3: Inter-model agreement (`inter_model.py`)
+- Q4: Metadata effects on outputs (`metadata_analysis.py`)
+- Q5: Direct vs CoT vs Chained CoT (`cot_analysis.py`)
+- Dataset-level diagnostics (`data_analysis.py`)
+
+## 2. Repository Map
+
+- `src/prompt_generation/`: data cleaning, article enrichment, prompt construction
+- `src/model_runner/`: multi-provider inference runner (Ollama, OpenAI, Gemini)
+- `src/analysis/`: statistical analysis scripts and report generation
+- `data/`: cleaned datasets and generated prompts
+- `results/`: model outputs by version/model
+- `analysis_reports/`: final analysis CSVs and figures
+
+## 3. Reproducible Environment Setup
+
+From repository root:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pip install python-dotenv matplotlib scikit-learn scipy statsmodels
+```
+
+Set API keys only for providers you use:
+
+```bash
+export OPENAI_API_KEY="..."
+export GEMINI_API_KEY="..."
+# or
+export GOOGLE_API_KEY="..."
+```
+
+## 4. Test Profile Defaults
+
+Use these defaults everywhere unless you intentionally scale up:
+
+- `version=test`
+- `file-type=test_two_queries`
+- small worker count (`--workers 1` or `2`)
+- deterministic temperature (`--model-temperature 0.0`)
+
+## 5. Step-by-Step Pipeline (Test-Only)
+
+### Step A: Generate prompts
+
+Run from `src/prompt_generation` (required because paths are relative in this module):
+
+```bash
+cd src/prompt_generation
+python prompt_generator.py --clean --fetch --all-prompts --version test
+```
+
+Optional: generate only selected prompt families:
+
+```bash
+python prompt_generator.py --prompts articles_info politics sources source_politics source_pii politics_pii pii_combined_all --version test
+```
+
+Output location:
+
+- `data/prompts/test/`
+
+### Step B: Run model inference
+
+Run from repository root with `PYTHONPATH=src`:
+
+```bash
+cd ../..
+```
+
+Ollama (test slice):
+
+```bash
+PYTHONPATH=src python src/model_runner/main.py \
+  --provider ollama \
+  --model llama4:scout \
+  --version test \
+  --file-type test_two_queries \
+  --prompt-dir data/prompts \
+  --output-dir results \
+  --workers 1 \
+  --model-temperature 0.0
+```
+
+OpenAI direct (test slice):
+
+```bash
+PYTHONPATH=src python src/model_runner/main.py \
+  --provider openai \
+  --openai-mode direct \
+  --model gpt-5.4-mini \
+  --version test \
+  --file-type test_two_queries \
+  --prompt-dir data/prompts \
+  --output-dir results \
+  --model-temperature 0.0
+```
+
+Gemini (test slice):
+
+```bash
+PYTHONPATH=src python src/model_runner/main.py \
+  --provider gemini \
+  --model gemini-2.5-flash-lite \
+  --version test \
+  --file-type test_two_queries \
+  --prompt-dir data/prompts \
+  --output-dir results \
+  --workers 1 \
+  --model-temperature 0.0
+```
+
+Output location:
+
+- `results/test/<model>/llm_outputs/*.csv`
+
+### Step D: Run analysis scripts
+
+Run from `src/analysis`:
+
+```bash
+cd src/analysis
+python data_analysis.py
+python most_aligned_models.py
+python models_align_with_politics.py
+python inter_model.py
+python metadata_analysis.py
+python cot_analysis.py
+```
+
+Output location:
+
+- `analysis_reports/dataset/`
+- `analysis_reports/question1/`
+- `analysis_reports/question2/`
+- `analysis_reports/question3/`
+- `analysis_reports/question4/`
+- `analysis_reports/question5/`
+
+## 6. Input/Output Data
+
+### Prompt CSV required columns
 
 - `article_id`
 - `index`
 - `prompt`
 
-Output CSV rows include:
+### Runner output columns (common)
 
 - `llm_assessment`
 - `llm_confidence`
-- `llm_explanation`
+- `llm_explanation` (when explanation is enabled)
 - `llm_model`
 - `llm_error`
 
-## Setup
+These two identifiers are not expected to be identical.
 
-Install dependencies:
+## 9. For full analysis that presented to the paper
 
-`pip install -r requirements.txt`
-
-Set provider keys when needed:
-
-- OpenAI: `export OPENAI_API_KEY=...`
-- Gemini: `export GEMINI_API_KEY=...` or `export GOOGLE_API_KEY=...`
-
-## Generate prompts
-
-From `src/prompt_generation`: 
-
-- Generate clean data + fetch article info + generate all prompts for a version:
-  `python prompt_generator.py --clean --fetch --all-prompts --version v7`
-
-- Generate only selected prompt files:
-  `python prompt_generator.py --prompts articles_info politics sources source_politics source_pii politics_pii pii_combined_all --version v7`
-
-- Limit prompt length (character truncation) during generation:
-  `python prompt_generator.py --all-prompts --version v7 --context-length 32768`
-
-Generated prompt CSVs are written to `data/prompts/<version>/`.
-
-## Run from CLI
-
-From `src/model_runner`:
-
-- Ollama (auto provider):
-  `python main.py --model llama3.2:3b --version v7.1 --file-type all`
-
-- OpenAI Batch:
-  `python main.py --provider openai --openai-mode batch --model gpt-4o-mini --version v7.1 --file-type all --batch-poll-interval 60`
-
-- Gemini:
-  `python main.py --provider gemini --model gemini-2.0-flash-lite --version v7.1 --file-type all --workers 4`
-
-## Run with example shell scripts
-
-From repository root:
-
-- OpenAI batch: `bash examples/model_runner/openai_batch_runner.sh [file_type] [version]`
-- Gemini: `bash examples/model_runner/gemini_runner.sh [file_type] [version]`
-- Ollama Llama 4 Scout: `bash examples/model_runner/ollama_runner.sh [file_type]`
-
-Examples:
-
-- `bash examples/model_runner/openai_batch_runner.sh test_two_queries test`
-- `bash examples/model_runner/gemini_runner.sh test_two_queries test`
-
-## Notes
-
-- The runner writes outputs under `results/<version>/<model>/llm_outputs/`.
-- `--provider auto` infers provider from model name.
+The complete set of prompts, model outputs, and analysis results used in this study are available on [Google Drive](https://drive.google.com/drive/folders/1AtnBNQbIRd-DJRad8vtg5F_psUXxRBmF?usp=sharing)

@@ -27,8 +27,7 @@ print(human_df[["index", "article_id", "bias-question", "human_label"]].head())
 # -------------------------
 # 2. Load LLM results
 # -------------------------
-BASE_PATH = Path("../../results/v8/v8.1/")
-llm_df = utils.load_model_outputs(BASE_PATH, "prompt_article_info.csv")
+llm_df = utils.load_model_outputs(Constants.REASONING_CONDITION_PATHS["Direct"], "prompt_article_info.csv")
 
 print("=" * 60)
 print("LLM row-level data:")

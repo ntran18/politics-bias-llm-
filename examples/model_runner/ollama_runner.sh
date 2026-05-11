@@ -12,7 +12,7 @@ fi
 
 MODEL="llama4:scout"
 FILE_TYPE="${1:-test_two_queries}"
-DEFAULT_VERSIONS=("v8.1" "v8.2" "v8.3")
+DEFAULT_VERSIONS=("test")
 
 if [[ $# -ge 2 ]]; then
     VERSIONS=("${@:2}")

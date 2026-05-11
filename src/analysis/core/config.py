@@ -84,9 +84,9 @@ class Constants:
     POLITICS_GROUPS = ["Conservative", "Liberal", "Independent"]
 
     REASONING_CONDITION_PATHS = {
-        "Direct": Path("../../results/v8/v8.1/"),
-        "CoT": Path("../../results/v8cot/v8cot.1/"),
-        CHAINED_COT: Path("../../results/v8cot/v8cot.chained/"),
+        "Direct": Path("../../results/direct/direct.1/"),
+        "CoT": Path("../../results/cot/cot.1/"),
+        CHAINED_COT: Path("../../results/chained_cot/chained_cot.1/"),
     }
 
     REASONING_CONDITION_ORDER = ["Direct", "CoT", CHAINED_COT]

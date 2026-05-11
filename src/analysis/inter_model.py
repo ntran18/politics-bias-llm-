@@ -13,8 +13,6 @@ from core.utils import Utils
 
 # Use centralized utils for paths, IO, and helpers
 utils = Utils("question3")
-
-BASE_PATH = Path("../../results/v8/v8.1/")
 PROMPT_FILE = "prompt_article_info.csv"
 
 # Directories via utils
@@ -28,7 +26,7 @@ plt.rcParams.update(Constants.PLOT_STYLE)
 # ============================================================
 # 1. Load model predictions
 # ============================================================
-long_df = utils.load_model_outputs(BASE_PATH, PROMPT_FILE)
+long_df = utils.load_model_outputs(Constants.REASONING_CONDITION_PATHS["Direct"], PROMPT_FILE)
 
 utils.save_csv(long_df, "inter_model_predictions_long.csv", index=False)
 

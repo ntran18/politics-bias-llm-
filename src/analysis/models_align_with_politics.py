@@ -17,7 +17,6 @@ from core.utils import Utils
 # =========================================================
 # Configuration
 # =========================================================
-BASE_PATH = Path("../../results/v8/v8.1/")
 PROMPT_FILE = "prompt_article_info.csv"
 
 BAR_WIDTH = 0.65
@@ -38,7 +37,7 @@ print(human_df[["index", "article_id", "politics", "bias-question", "human_label
 # ============================================================
 # 2. Load LLM outputs
 # ============================================================
-llm_df = utils.load_model_outputs(BASE_PATH, PROMPT_FILE)
+llm_df = utils.load_model_outputs(Constants.REASONING_CONDITION_PATHS["Direct"], PROMPT_FILE)
 
 print("\nLLM data:")
 print(llm_df.head())
